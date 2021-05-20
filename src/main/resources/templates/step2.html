@@ -54,6 +54,18 @@
     ul:nth-of-type(even) {
         background-color: rgb(224, 222, 222);
     }
+
+    .v-enter-active {
+        transition: opacity 3s;
+    }
+
+    .v-enter {
+        opacity: 0;
+    }
+
+    .v-enter-to {
+        opacity: 1;
+    }
 </style>
 
 <head>
@@ -64,7 +76,9 @@
 
 <body>
     <div id="app">
-        <h2>ToDoリスト</h2>
+        <transition appear>
+            <h2>ToDoリスト</h2>
+        </transition>
         <form v-on:submit.prevent>
             <input v-model="newTodo.todo" placeholder="todo" maxlength='100'>
             <vuejs-datepicker :disabled-dates="disabledDates" :format="DatePickerFormat" v-model="newTodo.kijitsu"
@@ -74,7 +88,8 @@
         </form>
         <ul v-for="(Todo) in todos" :key="Todo.id">
             <li class="row">
-                <label v-bind:class="{'done': Todo.kanryo, 'overdue': callIsOverdue(Todo)}">{{ Todo.id }} / {{ Todo.todo }} / {{ Todo.kijitsu | customformat }}</label>
+                <label v-bind:class="{'done': Todo.kanryo, 'overdue': callIsOverdue(Todo)}">{{ Todo.id }} /
+                    {{ Todo.todo }} / {{ Todo.kijitsu | customformat }}</label>
                 <p class="button">
                     <button v-on:click="delItem(Todo)">削除</button>
                     <button v-on:click="openModal(Todo)">編集</button>
@@ -83,7 +98,7 @@
         </ul>
         <div id="overlay" v-show="editTodo.todo != null">
             <div id="content">
-                <input type="checkbox" 　v-model="editTodo.kanryo"><label>完了</label><br>
+                <input type="checkbox" v-model="editTodo.kanryo"><label>完了</label><br>
                 <input type="text" v-model="editTodo.todo">
                 <vuejs-datepicker :disabled-dates="disabledDates" v-model="editTodo.kijitsu" placeholder="期日"
                     type="date">
