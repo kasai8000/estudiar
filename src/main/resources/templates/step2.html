@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+
+<style>
+    #app ul {
+        list-style: none;
+    }
+
+    .done {
+        text-decoration: line-through;
+    }
+
+    #content {
+        z-index: 2;
+        width: 20%;
+        padding: 1em;
+        background: #fff;
+    }
+
+    #overlay {
+        z-index: 1;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .button {
+        display: none;
+        width: 95px;
+        padding: 5px;
+        padding-top: 0;
+        margin: 0;
+        padding-bottom: 0;
+    }
+
+    .row {
+        display: inline-flex;
+    }
+
+    .row:hover .button {
+        display: block;
+    }
+
+    .overdue {
+        color: red;
+    }
+
+    ul:nth-of-type(even) {
+        background-color: rgb(224, 222, 222);
+    }
+</style>
+
+<head>
+    <meta charset="utf-8">
+    <title>ToDoリスト</title>
+    <link rel="icon" type="image/png" href="http://localhost:8080/favicon.ico">
+</head>
+
+<body>
+    <div id="app">
+        <h2>ToDoリスト</h2>
+        <form v-on:submit.prevent>
+            <input v-model="newTodo.todo" placeholder="todo" maxlength='100'>
+            <vuejs-datepicker :disabled-dates="disabledDates" :format="DatePickerFormat" v-model="newTodo.kijitsu"
+                placeholder="期日" type="date">
+            </vuejs-datepicker>
+            <button v-on:click="addItem">追加</button>
+        </form>
+        <ul v-for="(Todo) in todos">
+            <li class="row">
+                <label v-bind:class="{'done': Todo.kanryo, 'overdue': callIsOverdue(Todo)}">{{ Todo.id }} / {{ Todo.todo }} / {{ Todo.kijitsu | customformat }}</label>
+                <p class="button">
+                    <button v-on:click="delItem(Todo)">削除</button>
+                    <button v-on:click="openModal(Todo)">編集</button>
+                </p>
+            </li>
+        </ul>
+        <div id="overlay" v-show="editTodo.todo != null">
+            <div id="content">
+                <input type="checkbox" 　v-model="editTodo.kanryo"><label>完了</label><br>
+                <input type="text" v-model="editTodo.todo">
+                <vuejs-datepicker :disabled-dates="disabledDates" v-model="editTodo.kijitsu" placeholder="期日"
+                    type="date">
+                </vuejs-datepicker>
+                <button v-on:click="closeModal">ok</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/vuejs-datepicker"></script>
+    <script src="https://momentjs.com/downloads/moment.js"></script>
+    <script>
+        class Todo {
+            constructor() {
+                this.todo = null;
+                this.kijitsu = null;
+                this.kanryo = false;
+                this.isEmpty = function () {
+                    return this.todo == null;
+                };
+                this.isOverdue = function () {
+                    let today = new Date();
+                    let strToday = today.getFullYear() + '-' + ("0" + (today.getMonth() + 1)).slice(-2) + '-' + today.getDate();
+                    let deadline = moment(this.kijitsu).format('YYYY-MM-DD');
+                    console.log("isOverdue called");
+                    return deadline < strToday && !this.kanryo;
+                };
+            }
+            static createCopy(todo) {
+                let newObj = new Todo();
+                newObj.id = todo.id;
+                newObj.todo = todo.todo;
+                newObj.kijitsu = todo.kijitsu;
+                newObj.kanryo = todo.kanryo;
+                console.log(newObj);
+                return newObj;
+            }
+        }
+
+        new Vue({
+            el: '#app',
+            data: {
+                newTodo: new Todo(),
+                editTodo: new Todo(),
+                todos: [],
+                disabledDates: {
+                    to: new Date(2021, 01, 01),
+                    from: new Date(2100, 01, 01),
+                },
+                DatePickerFormat: 'yyyy-MM-dd',
+            },
+            methods: {
+                addItem: function () {
+                    if (this.newTodo.isEmpty()) return; //newTodoが空でなければ
+                    let xhr = new XMLHttpRequest();　//XMLHttpRequestのインスタンス作成
+                    xhr.open('POST', 'http://localhost:8080/rest/todos', true);　//リクエストの初期化
+                    xhr.setRequestHeader('content-type', 'application/json');　//request headersをjsonに設定
+                    xhr.onreadystatechange = () => {　//通信の状態が変化した時の動作を定義する
+                        if (xhr.readyState == 4 && xhr.status == 200) {
+                            console.log("成功");
+                            let pushTodo = JSON.parse(xhr.responseText);
+                            this.todos.push(Todo.createCopy(pushTodo)); //画面のtodoリストに新しいtodoを再オブジェクト化して追加
+                            console.log(pushTodo);
+                            this.newTodo = new Todo(); //todo入力欄の初期化
+                        } else if (xhr.readyState == 1 || xhr.readyState == 2 || xhr.readyState == 3) {
+                            console.log("待機中");
+                        } else {
+                            console.log("失敗");
+                        }
+                    };
+                    let json = JSON.stringify(this.newTodo); //newTodoをJSON文字列に変換してjsonに代入
+                    xhr.send(json); //jsonデータ送信
+                },
+                delItem: function (Todo) {
+                    console.log(Todo);
+                    let xhr = new XMLHttpRequest();
+                    let url = "http://localhost:8080/rest/todos/" + Todo.id;
+                    console.log(url);
+                    xhr.open('DELETE', url, true);
+                    xhr.setRequestHeader('content-type', 'application/json');
+                    xhr.onreadystatechange = () => {
+                        if (xhr.readyState == 4 && xhr.status == 200) {
+                            console.log("成功");
+                            console.log(xhr.responseText);
+                            let result = JSON.parse(xhr.responseText).id;
+                            console.log(result);
+                            const index = this.todos.findIndex((v) => v.id === result);//idから要素番号を検索
+                            console.log(index);
+                            this.todos.splice(index, 1);
+                        } else if (xhr.readyState == 1 || xhr.readyState == 2 || xhr.readyState == 3) {
+                            console.log("待機中");
+                        } else {
+                            console.log("失敗");
+                            console.log(xhr.responseText);
+                        }
+                    };
+                    let json = JSON.stringify(Todo);
+                    console.log(json);
+                    xhr.send(json);
+                },
+                openModal: function (Todo) {
+                    console.log(Todo);
+                    this.editTodo = Todo;
+                },
+                closeModal: function () {
+                    this.todos[this.editTodo] = this.editTodo;
+                    console.log(this.editTodo);
+                    if (!this.editTodo.todo) return;
+                    let xhr = new XMLHttpRequest();
+                    let url = "http://localhost:8080/rest/todos/" + this.editTodo.id;
+                    console.log(url);
+                    xhr.open('PUT', url, true);
+                    xhr.setRequestHeader('content-type', 'application/json');
+                    xhr.onreadystatechange = () => {
+                        if (xhr.readyState == 4 && xhr.status == 200) {
+                            console.log("成功");
+                            console.log(xhr.responseText);
+                            this.editTodo = new Todo();
+                        } else if (xhr.readyState == 1 || xhr.readyState == 2 || xhr.readyState == 3) {
+                            console.log("待機中");
+                        } else {
+                            console.log("失敗");
+                            console.log(xhr.responseText);
+                        }
+                    };
+                    let json = JSON.stringify(this.editTodo);
+                    console.log(json);
+                    xhr.send(json);
+                },
+                callIsOverdue: function (todo) {
+                    return todo.isOverdue();
+                }
+            },
+            components: {
+                'vuejs-datepicker': vuejsDatepicker
+            },
+            filters: {
+                customformat: function (value) {
+                    if (!value == '') {
+                        return moment(value).format('YYYY年MM月DD日');
+                    }
+                }
+            },
+            mounted: function () {
+                let xhr = new XMLHttpRequest();
+                xhr.open('GET', 'http://localhost:8080/rest/todos', true);
+                xhr.onreadystatechange = () => {
+                    if (xhr.readyState == 4 && xhr.status == 200) {
+                        let result = JSON.parse(xhr.responseText);
+                        console.dir(result);
+                        for (let i = 0; i < result.length; i++) {
+                            this.todos.push(Todo.createCopy(result[i]));
+                        }
+                    }
+                };
+                xhr.send();
+            },
+        });
+    </script>
+</body>
+
+</html>
