@@ -72,7 +72,7 @@
             </vuejs-datepicker>
             <button v-on:click="addItem">追加</button>
         </form>
-        <ul v-for="(Todo) in todos">
+        <ul v-for="(Todo) in todos" :key="Todo.id">
             <li class="row">
                 <label v-bind:class="{'done': Todo.kanryo, 'overdue': callIsOverdue(Todo)}">{{ Todo.id }} / {{ Todo.todo }} / {{ Todo.kijitsu | customformat }}</label>
                 <p class="button">
@@ -103,7 +103,7 @@
                 this.kijitsu = null;
                 this.kanryo = false;
                 this.isEmpty = function () {
-                    return this.todo == null;
+                    return this.todo == null || this.todo == "";
                 };
                 this.isOverdue = function () {
                     let today = new Date();
@@ -138,6 +138,7 @@
             },
             methods: {
                 addItem: function () {
+                    console.log(this.newTodo.isEmpty());
                     if (this.newTodo.isEmpty()) return; //newTodoが空でなければ
                     let xhr = new XMLHttpRequest();　//XMLHttpRequestのインスタンス作成
                     xhr.open('POST', 'http://localhost:8080/rest/todos', true);　//リクエストの初期化
@@ -190,9 +191,9 @@
                     this.editTodo = Todo;
                 },
                 closeModal: function () {
+                    console.log(this.editTodo.isEmpty());
+                    if (this.editTodo.isEmpty()) return;
                     this.todos[this.editTodo] = this.editTodo;
-                    console.log(this.editTodo);
-                    if (!this.editTodo.todo) return;
                     let xhr = new XMLHttpRequest();
                     let url = "http://localhost:8080/rest/todos/" + this.editTodo.id;
                     console.log(url);
